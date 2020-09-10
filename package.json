@@ -1,0 +1,15 @@
+{
+  "name": "hemerodrome",
+  "version": "0.0.1",
+  "description": "Hemerodrome Test Runner",
+  "main": "index.js",
+  "repository": "git@github.com:mdbarr/hemerodrome.git",
+  "author": "Mark Barr <mbarr@ptc.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^7.8.1"
+  },
+  "dependencies": {
+    "barrkeep": "^2.6.6"
+  }
+}
