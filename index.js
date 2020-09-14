@@ -27,6 +27,15 @@ function Hemerodrome (options = {}, files) {
 
   //////////
 
+  this.addChain = (object) => {
+    Object.defineProperty(object, 'chain', {
+      value: Promise.resolve(),
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    });
+  };
+
   this.setParent = (object, parent) => {
     Object.defineProperty(object, 'parent', {
       value: parent,
@@ -51,13 +60,14 @@ function Hemerodrome (options = {}, files) {
       stop: -1,
     };
 
+    this.addChain(spec);
     this.setParent(spec, root);
 
     root.items.push(spec);
 
     let parent = spec;
 
-    this.describe = async (name, func) => {
+    this.describe = (name, func) => {
       console.log('parent', parent.name);
 
       const suite = {
@@ -69,35 +79,43 @@ function Hemerodrome (options = {}, files) {
         stop: -1,
       };
 
+      this.addChain(suite);
       this.setParent(suite, parent);
 
       console.log(suite.parent.name);
 
-      parent.items.push(suite);
+      suite.parent.items.push(suite);
 
-      parent = suite;
+      suite.parent.chain = suite.parent.chain.
+        then(async () => {
+          parent = suite;
 
-      console.log('describe', name, suite.parent.name);
-      try {
-        await func();
-        if (suite.state !== 'failed') {
+          console.log('describe', name, suite.parent.name);
+          await func();
+        }).
+        then(async () => {
+          await suite.chain;
+
           suite.state = 'passed';
-        }
-      } catch (error) {
-        suite.state = 'failed';
-        suite.error = error.toString();
-      }
+          suite.stop = timestamp();
 
-      if (suite.state === 'failed') {
-        suite.parent.state = suite.state;
-      }
+          parent = suite.parent;
+        }).
+        catch(async (error) => {
+          await suite.chain;
 
-      parent = suite.parent;
+          suite.state = 'failed';
+          suite.parent.state = suite.state;
+          suite.error = error.toString();
+          suite.stop = timestamp();
 
-      suite.stop = timestamp();
+          parent = suite.parent;
+        });
+
+      return suite.chain;
     };
 
-    this.it = async (name, func) => {
+    this.it = (name, func) => {
       const test = {
         object: 'test',
         name,
@@ -108,19 +126,25 @@ function Hemerodrome (options = {}, files) {
 
       this.setParent(test, parent);
 
-      parent.items.push(test);
+      test.parent.items.push(test);
       console.log('it', name, parent.name);
-      try {
-        await func();
-        test.state = 'passed';
-      } catch (error) {
-        test.state = 'failed';
-        test.error = error.toString();
 
-        parent.state = 'failed';
-      }
+      test.parent.chain = test.parent.chain.
+        then(async () => await func()).
+        then(() => {
+          test.state = 'passed';
+          test.stop = timestamp();
+        }).
+        catch((error) => {
+          test.state = 'failed';
+          test.parent.state = test.state;
 
-      test.stop = timestamp();
+          test.error = error.toString();
+
+          test.stop = timestamp();
+        });
+
+      return test.parent.chain;
     };
 
     const context = {
@@ -144,10 +168,12 @@ function Hemerodrome (options = {}, files) {
 
     const code = await fs.readFile(file);
 
-    await vm.runInContext(code, context, {
+    vm.runInContext(code, context, {
       filename: file,
       breakOnSigint: true,
     });
+
+    await spec.chain;
 
     if (spec.state === 'failed') {
       root.state = spec.state;

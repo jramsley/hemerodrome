@@ -1,11 +1,15 @@
-describe('afoo', async () => {
-  await describe('abar', async () => {
-
+describe('afoo', () => {
+  describe('abar', async () => {
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log('here');
+    console.log('sorta');
+
+    it('long resolve', async () => {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      console.log('here');
+    });
   });
 
-  await describe('bbar', async () => {
+  describe('bbar', () => {
     console.log('bbar');
   });
 });
