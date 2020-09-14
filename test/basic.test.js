@@ -4,7 +4,7 @@ describe('foo', () => {
   describe('oof', () => {
     it('meh', () => {
       expect(baz).to.equal(1);
-    });
+    }, 0);
 
     it('bar', () => {
       baz++;

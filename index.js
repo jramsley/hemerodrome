@@ -145,21 +145,27 @@ function Hemerodrome (options = {}, files) {
       console.log('it', name, parent.name);
 
       test.parent.chain = test.parent.chain.
-        then(async () => Promise.race([
-          new Promise(async (resolve, reject) => {
-            try {
-              await func();
-              resolve();
-            } catch (error) {
-              reject(error);
-            }
-          }),
-          new Promise((resolve, reject) => {
-            setTimeout(() => {
-              reject(new Error(`Async callback not called within timeout of ${ test.timeout }ms`));
-            }, test.timeout);
-          }),
-        ])).
+        then(async () => {
+          if (test.timeout === 0) {
+            return await func();
+          }
+
+          return Promise.race([
+            new Promise(async (resolve, reject) => {
+              try {
+                await func();
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
+            }),
+            new Promise((resolve, reject) => {
+              setTimeout(() => {
+                reject(new Error(`Async callback not called within timeout of ${ test.timeout }ms`));
+              }, test.timeout);
+            }),
+          ]);
+        }).
         then(() => {
           test.state = 'passed';
           test.stop = timestamp();
