@@ -6,25 +6,48 @@ const vm = require('vm');
 const async = require('async');
 const fs = require('fs').promises;
 const expect = require('barrkeep/expect');
+const { merge } = require('barrkeep/utils');
 
-function Hemerodrome (config, files) {
+const defaults = {
+  parrallel: true,
+  concurrency: 5,
+};
+
+function Hemerodrome (options = {}, files) {
+  this.config = merge(defaults, options, true);
+
   const root = {
     name: 'hemerodrome',
+    object: 'results',
     items: [],
     state: 'running',
   };
 
   //////////
 
-  async.eachLimit(files, 10, async (file) => {
+  this.setParent = (object, parent) => {
+    Object.defineProperty(object, 'parent', {
+      value: parent,
+      writable: false,
+      configurable: false,
+      enumerable: false,
+    });
+
+    return object;
+  };
+
+  //////////
+
+  this.queue = async.queue(async (file) => {
     const spec = {
       object: 'spec',
       name: file.replace(/^(.*?)([^/]+)$/, '$2'),
       file,
       items: [ ],
-      parent: root,
       state: 'running',
     };
+
+    this.setParent(spec, root);
 
     root.items.push(spec);
 
@@ -37,9 +60,10 @@ function Hemerodrome (config, files) {
         object: 'suite',
         name,
         items: [ ],
-        parent,
         state: 'running',
       };
+
+      this.setParent(suite, parent);
 
       console.log(suite.parent.name);
 
@@ -71,6 +95,8 @@ function Hemerodrome (config, files) {
         name,
         state: 'running',
       };
+
+      this.setParent(test, parent);
 
       parent.items.push(test);
       console.log('it', name, parent.name);
@@ -116,13 +142,23 @@ function Hemerodrome (config, files) {
     } else {
       spec.state = 'passed';
     }
-  }, (error) => {
-    if (error) {
-      console.log('error', error);
-    }
+  }, this.config.parallel ? this.config.concurrency : 1);
+
+  //////////
+
+  this.queue.error((error, file) => {
+    console.log('error', error, file);
+  });
+
+  this.queue.drain(() => {
+    console.log('Done!');
 
     console.pp(root);
   });
+
+  /////////
+
+  this.queue.push(files);
 }
 
 const hemerodrome = new Hemerodrome({}, [ './test/basic.test.js', './test/async.test.js' ]);
