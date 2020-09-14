@@ -6,7 +6,7 @@ const vm = require('vm');
 const async = require('async');
 const fs = require('fs').promises;
 const expect = require('barrkeep/expect');
-const { merge } = require('barrkeep/utils');
+const { merge, timestamp } = require('barrkeep/utils');
 
 const defaults = {
   parrallel: true,
@@ -21,6 +21,8 @@ function Hemerodrome (options = {}, files) {
     object: 'results',
     items: [],
     state: 'running',
+    start: timestamp(),
+    stop: -1,
   };
 
   //////////
@@ -45,6 +47,8 @@ function Hemerodrome (options = {}, files) {
       file,
       items: [ ],
       state: 'running',
+      start: timestamp(),
+      stop: -1,
     };
 
     this.setParent(spec, root);
@@ -61,6 +65,8 @@ function Hemerodrome (options = {}, files) {
         name,
         items: [ ],
         state: 'running',
+        start: timestamp(),
+        stop: -1,
       };
 
       this.setParent(suite, parent);
@@ -87,6 +93,8 @@ function Hemerodrome (options = {}, files) {
       }
 
       parent = suite.parent;
+
+      suite.stop = timestamp();
     };
 
     this.it = async (name, func) => {
@@ -94,6 +102,8 @@ function Hemerodrome (options = {}, files) {
         object: 'test',
         name,
         state: 'running',
+        start: timestamp(),
+        stop: -1,
       };
 
       this.setParent(test, parent);
@@ -109,6 +119,8 @@ function Hemerodrome (options = {}, files) {
 
         parent.state = 'failed';
       }
+
+      test.stop = timestamp();
     };
 
     const context = {
@@ -142,6 +154,8 @@ function Hemerodrome (options = {}, files) {
     } else {
       spec.state = 'passed';
     }
+
+    spec.stop = timestamp();
   }, this.config.parallel ? this.config.concurrency : 1);
 
   //////////
@@ -151,6 +165,8 @@ function Hemerodrome (options = {}, files) {
   });
 
   this.queue.drain(() => {
+    root.stop = timestamp();
+
     console.log('Done!');
 
     console.pp(root);
