@@ -2,18 +2,21 @@
   "name": "hemerodrome",
   "version": "0.0.1",
   "description": "Hemerodrome Test Runner",
-  "main": "index.js",
+  "main": "hemerodrome.js",
+  "bin": "./cli.js",
   "repository": "git@github.com:mdbarr/hemerodrome.git",
-  "author": "Mark Barr <mbarr@ptc.com>",
+  "author": "Mark Barr <mark@hyperingenuity.com>",
   "license": "MIT",
   "dependencies": {
     "async": "^3.2.0",
-    "barrkeep": "^2.6.6"
+    "barrkeep": "^2.6.6",
+    "glob": "^7.1.6",
+    "yargs": "^16.0.3"
   },
   "devDependencies": {
     "eslint": "^7.8.1"
   },
   "scripts": {
-    "lint": "eslint index.js"
+    "lint": "eslint *.js test/*.js"
   }
 }

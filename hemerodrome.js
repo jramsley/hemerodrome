@@ -14,14 +14,14 @@ const defaults = {
   timeout: 5000,
 };
 
-function Hemerodrome (options = {}, files) {
+function Hemerodrome (options = {}) {
   this.config = merge(defaults, options, true);
 
   const root = {
     name: 'hemerodrome',
     object: 'results',
     items: [],
-    state: 'running',
+    state: 'ready',
     start: timestamp(),
     stop: -1,
   };
@@ -58,6 +58,8 @@ function Hemerodrome (options = {}, files) {
   //////////
 
   this.queue = async.queue(async (file) => {
+    root.state = 'running';
+
     const spec = {
       object: 'spec',
       name: file.replace(/^(.*?)([^/]+)$/, '$2'),
@@ -201,14 +203,19 @@ function Hemerodrome (options = {}, files) {
 
     vm.createContext(context);
 
-    const code = await fs.readFile(file);
+    try {
+      const code = await fs.readFile(file);
 
-    vm.runInContext(code, context, {
-      filename: file,
-      breakOnSigint: true,
-    });
+      vm.runInContext(code, context, {
+        filename: file,
+        breakOnSigint: true,
+      });
 
-    await spec.chain;
+      await spec.chain;
+    } catch (error) {
+      spec.state = 'failed';
+      spec.error = error.toString();
+    }
 
     if (spec.state === 'failed') {
       root.state = spec.state;
@@ -241,9 +248,9 @@ function Hemerodrome (options = {}, files) {
 
   /////////
 
-  this.queue.push(files);
+  this.addFiles = (files) => {
+    this.queue.push(files);
+  };
 }
 
-const hemerodrome = new Hemerodrome({}, [ './test/basic.test.js', './test/async.test.js' ]);
-
-module.exports = hemerodrome;
+module.exports = Hemerodrome;
