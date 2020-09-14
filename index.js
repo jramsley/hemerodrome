@@ -216,6 +216,8 @@ function Hemerodrome (options = {}, files) {
     console.log('Done!');
 
     console.pp(root);
+
+    process.exit(root.state === 'failed' ? 1 : 0);
   });
 
   /////////
