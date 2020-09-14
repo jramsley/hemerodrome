@@ -5,6 +5,7 @@ require('barrkeep/pp');
 const vm = require('vm');
 const async = require('async');
 const fs = require('fs').promises;
+const { join, resolve } = require('path');
 const expect = require('barrkeep/expect');
 const { merge, timestamp } = require('barrkeep/utils');
 
@@ -64,6 +65,7 @@ function Hemerodrome (options = {}) {
       object: 'spec',
       name: file.replace(/^(.*?)([^/]+)$/, '$2'),
       file,
+      cwd: resolve(file.replace(/[^/]+$/, '')),
       items: [ ],
       state: 'running',
       start: timestamp(),
@@ -195,7 +197,12 @@ function Hemerodrome (options = {}) {
       it: this.it,
       process,
       queueMicrotask,
-      require,
+      require (path) {
+        if (path.startsWith('.')) {
+          path = resolve(join(spec.cwd, path));
+        }
+        return require(path);
+      },
       setImmediate,
       setInterval,
       setTimeout,
