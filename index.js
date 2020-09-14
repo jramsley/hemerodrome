@@ -98,7 +98,12 @@ function Hemerodrome (options = {}, files) {
         then(async () => {
           await suite.chain;
 
-          suite.state = 'passed';
+          if (suite.state === 'failed') {
+            suite.parent.state = suite.state;
+          } else {
+            suite.state = 'passed';
+          }
+
           suite.stop = timestamp();
 
           parent = suite.parent;
@@ -211,6 +216,10 @@ function Hemerodrome (options = {}, files) {
   });
 
   this.queue.drain(() => {
+    if (root.state !== 'failed') {
+      root.state = 'passed';
+    }
+
     root.stop = timestamp();
 
     console.log('Done!');
