@@ -11,6 +11,7 @@ const { merge, timestamp } = require('barrkeep/utils');
 const defaults = {
   parrallel: true,
   concurrency: 5,
+  timeout: 500,
 };
 
 function Hemerodrome (options = {}, files) {
@@ -67,7 +68,7 @@ function Hemerodrome (options = {}, files) {
 
     let parent = spec;
 
-    this.describe = (name, func) => {
+    this.describe = (name, func, timeout = this.config.timeout) => {
       console.log('parent', parent.name);
 
       const suite = {
@@ -77,6 +78,7 @@ function Hemerodrome (options = {}, files) {
         state: 'running',
         start: timestamp(),
         stop: -1,
+        timeout,
       };
 
       this.addChain(suite);
@@ -115,7 +117,7 @@ function Hemerodrome (options = {}, files) {
       return suite.chain;
     };
 
-    this.it = (name, func) => {
+    this.it = (name, func, timeout) => {
       const test = {
         object: 'test',
         name,
@@ -126,11 +128,29 @@ function Hemerodrome (options = {}, files) {
 
       this.setParent(test, parent);
 
+      if (timeout === undefined) {
+        timeout = parent.timeout;
+      }
+
       test.parent.items.push(test);
       console.log('it', name, parent.name);
 
       test.parent.chain = test.parent.chain.
-        then(async () => await func()).
+        then(async () => Promise.race([
+          new Promise(async (resolve, reject) => {
+            try {
+              await func();
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          }),
+          new Promise((resolve, reject) => {
+            setTimeout(() => {
+              reject(new Error(`Async callback not called within timeout of ${ timeout }ms`));
+            }, timeout);
+          }),
+        ])).
         then(() => {
           test.state = 'passed';
           test.stop = timestamp();
