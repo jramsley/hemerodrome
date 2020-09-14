@@ -11,7 +11,7 @@ const { merge, timestamp } = require('barrkeep/utils');
 const defaults = {
   parrallel: true,
   concurrency: 5,
-  timeout: 500,
+  timeout: 5000,
 };
 
 function Hemerodrome (options = {}, files) {
@@ -44,8 +44,15 @@ function Hemerodrome (options = {}, files) {
       configurable: false,
       enumerable: false,
     });
+  };
 
-    return object;
+  this.setPrivate = (object, property, value) => {
+    Object.defineProperty(object, property, {
+      value,
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    });
   };
 
   //////////
@@ -78,11 +85,11 @@ function Hemerodrome (options = {}, files) {
         state: 'running',
         start: timestamp(),
         stop: -1,
-        timeout,
       };
 
       this.addChain(suite);
       this.setParent(suite, parent);
+      this.setPrivate(suite, 'timeout', timeout);
 
       console.log(suite.parent.name);
 
@@ -132,10 +139,7 @@ function Hemerodrome (options = {}, files) {
       };
 
       this.setParent(test, parent);
-
-      if (timeout === undefined) {
-        timeout = parent.timeout;
-      }
+      this.setPrivate(test, 'timeout', timeout === undefined ? parent.timeout : timeout);
 
       test.parent.items.push(test);
       console.log('it', name, parent.name);
@@ -152,8 +156,8 @@ function Hemerodrome (options = {}, files) {
           }),
           new Promise((resolve, reject) => {
             setTimeout(() => {
-              reject(new Error(`Async callback not called within timeout of ${ timeout }ms`));
-            }, timeout);
+              reject(new Error(`Async callback not called within timeout of ${ test.timeout }ms`));
+            }, test.timeout);
           }),
         ])).
         then(() => {
